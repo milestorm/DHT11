@@ -73,53 +73,46 @@ void dht11_wrapper() {
 }
 
 char * floatToString(char * outstr, double val, byte precision, byte widthp){
- char temp[16];
+ char temp[16]; //increase this if you need more digits than 15
  byte i;
-
- // compute the rounding factor and fractional multiplier
- double roundingFactor = 0.5;
- unsigned long mult = 1;
- for (i = 0; i < precision; i++)
- {
-   roundingFactor /= 10.0;
-   mult *= 10;
- }
 
  temp[0]='\0';
  outstr[0]='\0';
 
  if(val < 0.0){
-   strcpy(outstr,"-\0");
-   val = -val;
+   strcpy(outstr,"-\0");  //print "-" sign
+   val *= -1;
  }
 
- val += roundingFactor;
+ if( precision == 0) {
+   strcat(outstr, ltoa(round(val),temp,10));  //prints the int part
+ }
+ else {
+   unsigned long frac, mult = 1;
+   byte padding = precision-1;
 
- strcat(outstr, itoa(int(val),temp,10));  //prints the int part
- if( precision > 0) {
+   while (precision--)
+     mult *= 10;
+
+   val += 0.5/(float)mult;      // compute rounding factor
+
+   strcat(outstr, ltoa(floor(val),temp,10));  //prints the integer part without rounding
    strcat(outstr, ".\0"); // print the decimal point
-   unsigned long frac;
-   unsigned long mult = 1;
-   byte padding = precision -1;
-   while(precision--)
-     mult *=10;
 
-   if(val >= 0)
-     frac = (val - int(val)) * mult;
-   else
-     frac = (int(val)- val ) * mult;
+   frac = (val - floor(val)) * mult;
+
    unsigned long frac1 = frac;
 
    while(frac1 /= 10)
      padding--;
 
    while(padding--)
-     strcat(outstr,"0\0");
+     strcat(outstr,"0\0");    // print padding zeros
 
-   strcat(outstr,itoa(frac,temp,10));
+   strcat(outstr,ltoa(frac,temp,10));  // print fraction part
  }
 
- // generate space padding
+ // generate width space padding
  if ((widthp != 0)&&(widthp >= strlen(outstr))){
    byte J=0;
    J = widthp - strlen(outstr);
