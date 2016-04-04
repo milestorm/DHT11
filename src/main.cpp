@@ -5,6 +5,26 @@
  */
 #include "Arduino.h"
 #include "idDHT11.h"
+#include "Wire.h"
+#include "LCD.h"
+#include "LiquidCrystal_I2C.h"
+#include "string.h"
+
+/*-----( Declare Constants )-----*/
+#define I2C_ADDR    0x27
+#define BACKLIGHT_PIN  3
+#define En_pin  2
+#define Rw_pin  1
+#define Rs_pin  0
+#define D4_pin  4
+#define D5_pin  5
+#define D6_pin  6
+#define D7_pin  7
+
+#define  LED_OFF  1
+#define  LED_ON  0
+
+LiquidCrystal_I2C lcd(I2C_ADDR,En_pin,Rw_pin,Rs_pin,D4_pin,D5_pin,D6_pin,D7_pin);
 
 /*
   Board	          int.0	  int.1	  int.2	  int.3	  int.4	  int.5
@@ -18,6 +38,8 @@
 
 int idDHT11pin = 2; //Digital pin for comunications
 int idDHT11intNumber = 0; //interrupt number (must be the one that use the previus defined pin (see table above)
+char test[20];
+
 
 //declaration
 void dht11_wrapper(); // must be declared before the lib initialization
@@ -35,12 +57,83 @@ void setup()
   Serial.print("LIB version: ");
   Serial.println(IDDHT11LIB_VERSION);
   Serial.println("---------------");
+
+  lcd.begin (16,2);
+  lcd.setBacklightPin(BACKLIGHT_PIN,POSITIVE);
+  lcd.setBacklight(LED_ON);
+  lcd.backlight();  //Backlight ON if under program control
+
+
 }
 
 // This wrapper is in charge of calling
 // mus be defined like this for the lib work
 void dht11_wrapper() {
   DHT11.isrCallback();
+}
+
+char * floatToString(char * outstr, double val, byte precision, byte widthp){
+ char temp[16];
+ byte i;
+
+ // compute the rounding factor and fractional multiplier
+ double roundingFactor = 0.5;
+ unsigned long mult = 1;
+ for (i = 0; i < precision; i++)
+ {
+   roundingFactor /= 10.0;
+   mult *= 10;
+ }
+
+ temp[0]='\0';
+ outstr[0]='\0';
+
+ if(val < 0.0){
+   strcpy(outstr,"-\0");
+   val = -val;
+ }
+
+ val += roundingFactor;
+
+ strcat(outstr, itoa(int(val),temp,10));  //prints the int part
+ if( precision > 0) {
+   strcat(outstr, ".\0"); // print the decimal point
+   unsigned long frac;
+   unsigned long mult = 1;
+   byte padding = precision -1;
+   while(precision--)
+     mult *=10;
+
+   if(val >= 0)
+     frac = (val - int(val)) * mult;
+   else
+     frac = (int(val)- val ) * mult;
+   unsigned long frac1 = frac;
+
+   while(frac1 /= 10)
+     padding--;
+
+   while(padding--)
+     strcat(outstr,"0\0");
+
+   strcat(outstr,itoa(frac,temp,10));
+ }
+
+ // generate space padding
+ if ((widthp != 0)&&(widthp >= strlen(outstr))){
+   byte J=0;
+   J = widthp - strlen(outstr);
+
+   for (i=0; i< J; i++) {
+     temp[i] = ' ';
+   }
+
+   temp[i++] = '\0';
+   strcat(temp,outstr);
+   strcpy(outstr,temp);
+ }
+
+ return outstr;
 }
 
 void loop()
@@ -79,6 +172,8 @@ void loop()
     Serial.println("Unknown error");
     break;
   }
+
+
   Serial.print("Humidity (%): ");
   Serial.println(DHT11.getHumidity(), 2);
 
@@ -87,6 +182,15 @@ void loop()
 
   Serial.print("Dew Point (oC): ");
   Serial.println(DHT11.getDewPoint());
+
+
+
+  lcd.setCursor(0,0);
+  lcd.write("TEMP: ");
+  lcd.write( floatToString(test, DHT11.getCelsius(), 1, 3) );
+  lcd.setCursor(0,1);
+  lcd.write("HUMI: ");
+  lcd.write( floatToString(test, DHT11.getHumidity(), 1, 3) );
 
   digitalWrite(LED_BUILTIN, HIGH);
   delay(1000);
